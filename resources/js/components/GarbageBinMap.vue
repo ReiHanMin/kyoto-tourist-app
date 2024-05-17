@@ -11,6 +11,17 @@
 import axios from 'axios';
 import L from 'leaflet';
 
+// Import your custom icons (ensure these paths are correct)
+import binMarkerIconUrl from '../../../src/assets/bin-marker.png'; // Use the cartoonish bin PNG
+
+// Define custom icon for bin markers
+const binMarkerIcon = L.icon({
+  iconUrl: binMarkerIconUrl,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+});
+
 export default {
   name: 'GarbageBinMap',
   props: {
@@ -78,7 +89,7 @@ export default {
             const binId = `${bin.latitude}-${bin.longitude}`;
             if (!this.binMarkers.has(binId)) {
               console.log(`Adding marker for bin: ${binId}`); // Debug log
-              const marker = L.marker([bin.latitude, bin.longitude]);
+              const marker = L.marker([bin.latitude, bin.longitude], { icon: binMarkerIcon });
               marker.bindPopup(`<b>Garbage Bin</b><br>Type: ${bin.type}`);
               marker.on('click', () => {
                 this.handleMarkerClick(binId, [bin.latitude, bin.longitude]);
@@ -134,37 +145,49 @@ export default {
       }
     },
     drawRoute(start, end) {
-      // Clear the existing route line
-      if (this.routeLine && this.map.hasLayer(this.routeLine)) {
-        this.map.removeLayer(this.routeLine);
-      }
+    // Clear the existing route line
+    if (this.routeLine && this.map.hasLayer(this.routeLine)) {
+      this.map.removeLayer(this.routeLine);
+    }
 
-      const url = `https://api.openrouteservice.org/v2/directions/foot-walking?api_key=${this.apiKey}&start=${start[1]},${start[0]}&end=${end[1]},${end[0]}`;
+    const url = `https://api.openrouteservice.org/v2/directions/foot-walking?api_key=${this.apiKey}&start=${start[1]},${start[0]}&end=${end[1]},${end[0]}`;
 
-      axios.get(url)
-        .then(response => {
-          const coordinates = response.data.features[0].geometry.coordinates.map(coord => [coord[1], coord[0]]);
-          this.routeLine = L.polyline(coordinates, { color: 'blue', dashArray: '4' });
-          this.routeLine.addTo(this.map); // Store the current route line
+    axios.get(url)
+      .then(response => {
+        const coordinates = response.data.features[0].geometry.coordinates.map(coord => [coord[1], coord[0]]);
+        this.routeLine = L.polyline(coordinates, { color: 'blue', dashArray: '4' });
+        this.routeLine.addTo(this.map); // Store the current route line
 
-          const distance = response.data.features[0].properties.segments[0].distance; // Distance in meters
-          const duration = response.data.features[0].properties.segments[0].duration; // Duration in seconds
+        const distance = response.data.features[0].properties.segments[0].distance; // Distance in meters
+        const duration = response.data.features[0].properties.segments[0].duration; // Duration in seconds
 
-          const routeMarker = L.marker(end).addTo(this.map)
-            .bindPopup(`<b>Garbage Bin</b><br>Distance: ${(distance / 1000).toFixed(2)} km<br>Walking time: ${(duration / 60).toFixed(2)} mins`)
-            .openPopup();
+        // Format duration into hours and minutes
+        let hours = Math.floor(duration / 3600);
+        let minutes = Math.ceil((duration % 3600) / 60);
+        let timeDisplay = '';
 
-          // Remove the route marker when the route line is removed
-          this.routeLine.on('remove', () => {
-            if (this.map.hasLayer(routeMarker)) {
-              this.map.removeLayer(routeMarker);
-            }
-          });
-        })
-        .catch(error => {
-          console.error('Error fetching route data:', error);
+        if (hours > 0) {
+          timeDisplay = `${hours} hrs ${minutes} mins`;
+        } else {
+          timeDisplay = `${minutes} mins`;
+        }
+
+        const routeMarker = L.marker(end, { icon: binMarkerIcon }).addTo(this.map)
+          .bindPopup(`<b>Garbage Bin</b><br>Distance: ${(distance / 1000).toFixed(2)} km<br>Walking time: ${timeDisplay}`)
+          .openPopup();
+
+        // Remove the route marker when the route line is removed
+        this.routeLine.on('remove', () => {
+          if (this.map.hasLayer(routeMarker)) {
+            this.map.removeLayer(routeMarker);
+          }
         });
-    },
+      })
+      .catch(error => {
+        console.error('Error fetching route data:', error);
+      });
+  },
+
     updateRoutes() {
       if (!this.userLocation || this.binMarkers.size === 0) {
         return;
