@@ -41,32 +41,39 @@ export default {
     };
   },
   mounted() {
-    this.initializeMap();
-    this.fetchBinsAndUpdateRoutes();
+  this.initializeMap();
+  this.fetchBinsAndUpdateRoutes();
 
-    if (navigator.geolocation) {
-      navigator.geolocation.watchPosition(
-        (position) => {
-          const lat = position.coords.latitude;
-          const lon = position.coords.longitude;
-          this.userLocation = [lat, lon];
-          this.updateUserMarker([lat, lon]);
+  if (navigator.geolocation) {
+    navigator.geolocation.watchPosition(
+      (position) => {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        this.userLocation = [lat, lon];
+        this.updateUserMarker([lat, lon]);
+
+        if (!this.initialLocationSet) {
           this.map.setView([lat, lon], 13, { animate: false }); // Disable animations
-          this.updateRoutes();
-        },
-        (error) => {
-          console.error("Error getting user location:", error);
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 5000,
-          maximumAge: 0,
+          this.initialLocationSet = true; // Set the flag to true after initial location is set
         }
-      );
-    } else {
-      console.error("Geolocation is not supported by this browser.");
-    }
-  },
+
+        // Update routes whenever the user location is updated
+        this.updateRoutes();
+      },
+      (error) => {
+        console.error("Error getting user location:", error);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 5000,
+        maximumAge: 0,
+      }
+    );
+  } else {
+    console.error("Geolocation is not supported by this browser.");
+  }
+},
+
   methods: {
     initializeMap() {
       this.map = L.map('map', { zoomAnimation: false }).setView([35.0116, 135.7681], 13); // Disable zoom animations
@@ -74,7 +81,9 @@ export default {
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
       }).addTo(this.map);
+
     },
+      
     fetchBinsAndUpdateRoutes() {
       console.log("Fetching bins and updating routes"); // Debug log
       axios.get('/garbage-bins')
@@ -187,29 +196,28 @@ export default {
         console.error('Error fetching route data:', error);
       });
   },
-
     updateRoutes() {
-      if (!this.userLocation || this.binMarkers.size === 0) {
-        return;
-      }
-
-      // Find the nearest bin
-      let nearestBin = null;
-      let shortestDistance = Infinity;
-
-      this.binMarkers.forEach((marker, key) => {
-        const binLatLng = marker.getLatLng();
-        const distance = this.map.distance(this.userLocation, binLatLng);
-        if (distance < shortestDistance) {
-          shortestDistance = distance;
-          nearestBin = binLatLng;
-        }
-      });
-
-      if (nearestBin) {
-        this.drawRoute(this.userLocation, [nearestBin.lat, nearestBin.lng]);
-      }
+    if (!this.userLocation || this.binMarkers.size === 0) {
+      return;
     }
+
+    // Find the nearest bin
+    let nearestBin = null;
+    let shortestDistance = Infinity;
+
+    this.binMarkers.forEach((marker, key) => {
+      const binLatLng = marker.getLatLng();
+      const distance = this.map.distance(this.userLocation, binLatLng);
+      if (distance < shortestDistance) {
+        shortestDistance = distance;
+        nearestBin = binLatLng;
+      }
+    });
+
+    if (nearestBin) {
+      this.drawRoute(this.userLocation, [nearestBin.lat, nearestBin.lng]);
+    }
+  }
   }
 };
 </script>
@@ -221,5 +229,17 @@ export default {
 .info {
   margin-top: 10px;
   color: red;
+}
+.zoom-button {
+  background-color: white;
+  border: none;
+  padding: 10px;
+  cursor: pointer;
+  font-size: 18px;
+  margin: 5px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+.zoom-button:hover {
+  background-color: #f0f0f0;
 }
 </style>

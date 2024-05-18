@@ -3,7 +3,11 @@
 @section('content')
     <div class="container">
         <h1>Garbage Bins</h1>
-        <a href="{{ route('admin.garbage-bins.create') }}" class="btn btn-primary">Add New Garbage Bin</a>
+        @if (session('success'))
+            <div class="alert alert-success">
+                {{ session('success') }}
+            </div>
+        @endif
         <table class="table">
             <thead>
                 <tr>
