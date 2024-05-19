@@ -8,6 +8,12 @@
                 {{ session('success') }}
             </div>
         @endif
+
+        <!-- Button to add a new garbage bin -->
+        <div class="mb-3">
+            <a href="{{ route('admin.garbage-bins.create') }}" class="btn btn-primary">Add New Garbage Bin</a>
+        </div>
+
         <table class="table">
             <thead>
                 <tr>
